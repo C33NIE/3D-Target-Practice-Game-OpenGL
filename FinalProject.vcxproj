@@ -149,9 +149,11 @@
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="glad.c" />
+    <ClCompile Include="meshGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="meshGenerator.h" />
     <ClInclude Include="Raycaster.h" />
     <ClInclude Include="Shader.h" />
   </ItemGroup>

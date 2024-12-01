@@ -10,8 +10,12 @@ uniform mat4 view;
 uniform mat4 projection;
 
 void main() {
+    // Calculate the fragment position in world space
     FragPos = vec3(model * vec4(aPos, 1.0));
+    
+    // Transform the normals to world space
     Normal = mat3(transpose(inverse(model))) * aNormal;
 
+    // Final position of the vertex in clip space
     gl_Position = projection * view * vec4(FragPos, 1.0);
 }

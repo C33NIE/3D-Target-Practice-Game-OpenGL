@@ -10,9 +10,7 @@ enum CameraMovement {
     FORWARD,
     BACKWARD,
     LEFT,
-    RIGHT,
-    UP,
-    DOWN
+    RIGHT
 };
 
 class Camera {
@@ -50,22 +48,23 @@ public:
     // Process keyboard input for specific movement direction
     void ProcessKeyboard(CameraMovement direction, float deltaTime) {
         float velocity = MovementSpeed * deltaTime;
+
+        // Constrain movement to horizontal plane for forward/backward
+        glm::vec3 forwardDirection = glm::normalize(glm::vec3(Front.x, 0.0f, Front.z));
         if (direction == FORWARD)
-            Position += Front * velocity;
+            Position += forwardDirection * velocity;
         if (direction == BACKWARD)
-            Position -= Front * velocity;
+            Position -= forwardDirection * velocity;
+
+        // Horizontal strafing (left/right)
         if (direction == LEFT)
             Position -= Right * velocity;
         if (direction == RIGHT)
             Position += Right * velocity;
-        if (direction == UP)
-            Position += WorldUp * velocity;
-        if (direction == DOWN)
-            Position -= WorldUp * velocity;
     }
 
     // Process mouse movement
-    void ProcessMouseMovement(float xoffset, float yoffset) {
+    void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true) {
         xoffset *= MouseSensitivity;
         yoffset *= MouseSensitivity;
 
@@ -73,10 +72,12 @@ public:
         Pitch += yoffset;
 
         // Constrain the pitch
-        if (Pitch > 89.0f)
-            Pitch = 89.0f;
-        if (Pitch < -89.0f)
-            Pitch = -89.0f;
+        if (constrainPitch) {
+            if (Pitch > 89.0f)
+                Pitch = 89.0f;
+            if (Pitch < -89.0f)
+                Pitch = -89.0f;
+        }
 
         // Update Front, Right, and Up vectors using the updated Euler angles
         updateCameraVectors();

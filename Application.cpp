@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include "Shader.h"
 #include "Raycaster.h"
+#include "meshGenerator.h"
 
 // Create a Camera object
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
@@ -14,6 +15,10 @@ Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 
 // Time tracking variables for smooth movement
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+//gravity
+float gravity = 0.98f;
+bool onGround = true;
 
 // Mouse tracking variables
 float lastX = 400, lastY = 300;
@@ -29,21 +34,25 @@ Raycaster raycaster;
 // VAO for the ray line
 unsigned int rayVAO, rayVBO;
 
-// Callback for mouse movement
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+    static float lastX = 400.0f, lastY = 300.0f;
+    static bool firstMouse = true;
+
     if (firstMouse) {
         lastX = xpos;
         lastY = ypos;
         firstMouse = false;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;  // Reversed: y-coordinates range bottom to top
+    float xOffset = xpos - lastX;
+    float yOffset = lastY - ypos; // Reversed since y-coordinates go bottom to top
+
     lastX = xpos;
     lastY = ypos;
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+    camera.ProcessMouseMovement(xOffset, yOffset);
 }
+
 
 // Process keyboard input
 void processInput(GLFWwindow* window) {
@@ -59,10 +68,6 @@ void processInput(GLFWwindow* window) {
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        camera.ProcessKeyboard(UP, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        camera.ProcessKeyboard(DOWN, deltaTime);
 
     // Light position tweaking
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
@@ -83,7 +88,25 @@ void processInput(GLFWwindow* window) {
         lightIntensity = glm::min(lightIntensity + 0.05f, 10.0f);
     if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS) // '-'
         lightIntensity = glm::max(lightIntensity - 0.05f, 0.0f);
+
+
+    // Jump
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && onGround) {
+        camera.Position.y += 0.5f; // Initial jump velocity
+        onGround = false;
+    }
 }
+
+void applyGravity() {
+    if (!onGround) {
+        camera.Position.y -= gravity * deltaTime;
+        if (camera.Position.y <= -1.0f) { // Assume ground plane is y = -1
+            camera.Position.y = -1.0f;
+            onGround = true;
+        }
+    }
+}
+
 
 // Callback for mouse clicks to calculate and visualize the ray
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -123,6 +146,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+
     GLFWwindow* window = glfwCreateWindow(800, 600, "Lighting and Cube with Raycaster", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -146,72 +170,12 @@ int main() {
     Shader lightingShader("vertex_shader.glsl", "fragment_shader.glsl");
     Shader rayShader("ray_vertex_shader.glsl", "ray_fragment_shader.glsl"); // Shader for ray rendering
 
-    
-        
-    float vertices[] = {
+    // Generate a plane at position (2.0f, 0.0f, 0.0f)
+    Mesh plane = MeshGenerator::generatePlane(20.f, 20.f, glm::vec3(.0f, -1.5f, 0.0f));
 
-        // Back face
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    // Generate a cube at position (-2.0f, 1.0f, 0.0f)
+    Mesh cube = MeshGenerator::generateCube(2.0f, 2.0f, 2.0f, glm::vec3(-2.0f, 1.0f, 0.0f));
 
-        // Front face
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-
-        // Left face
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-        // Right face
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-         // Bottom face
-         -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-          0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-          0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-          0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-         -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-         -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-         // Top face
-         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-          0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-          0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-          0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-         -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-         -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-    };
-
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
 
     // Ray VAO/VBO setup
     glGenVertexArrays(1, &rayVAO);
@@ -229,12 +193,14 @@ int main() {
         lastFrame = currentFrame;
 
         processInput(window);
+        applyGravity();
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        plane.render();
+
 
         // Render ray
         rayShader.use();
