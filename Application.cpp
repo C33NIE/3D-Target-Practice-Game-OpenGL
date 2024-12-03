@@ -7,6 +7,13 @@
 #include "Camera.h"
 #include "Shader.h"
 #include "Raycaster.h"
+#include "Model.h"
+#include <vector>
+
+
+// Window settings
+const unsigned int WIDTH = 800;
+const unsigned int HEIGHT = 600;
 
 // Create a Camera object
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
@@ -123,7 +130,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Lighting and Cube with Raycaster", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Lighting and Cube with Raycaster", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -136,7 +143,7 @@ int main() {
         return -1;
     }
 
-    glViewport(0, 0, 800, 600);
+    glViewport(0, 0, WIDTH, HEIGHT);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
@@ -223,6 +230,22 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    glEnable(GL_DEPTH_TEST);
+
+    // Load 3D model
+    Model myModel("Resources/Models/Chicken/source/Chicken.glb");
+
+
+    // Transformations for the model
+    glm::vec3 modelPosition(2.0f, -1.0f, 0.0f);
+    glm::vec3 modelScale(0.5f, 0.5f, 0.5f);
+    glm::vec3 modelRotation(0.0f, 0.0f, 0.0f);
+
+    // Transformations for the cube
+    glm::vec3 cubePosition(0.0f, -1.0f, 0.0f);
+    glm::vec3 cubeScale(1.0f, 1.0f, 1.0f);
+    glm::vec3 cubeRotation(0.0f, 0.0f, 0.0f);
+
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -233,6 +256,10 @@ int main() {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Transformation for the cube
+        glm::mat4 cubeModel = glm::mat4(1.0f); // Identity matrix for the cube (no transformation)
+        cubeModel = glm::translate(cubeModel, cubePosition);
+        lightingShader.setMat4("model", cubeModel);  // Pass cube transformation to shader
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -251,20 +278,35 @@ int main() {
         lightingShader.setVec3("lightColor", glm::vec3(lightIntensity));
         lightingShader.setVec3("objectColor", glm::vec3(1.0f, 0.5f, 0.31f));
 
-        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 lightModel = glm::mat4(1.0f);
 
 
-        lightingShader.setMat4("model", model);
+        lightingShader.setMat4("model", lightModel);
         lightingShader.setMat4("view", view);
         lightingShader.setMat4("projection", projection);
 
         glBindVertexArray(rayVAO);
         glDrawArrays(GL_LINES, 0, 2);
 
+
+        // Transformation for the chicken model
+        modelRotation.y =  50.0f; // Rotate model over time
+        //modelRotation.y += deltaTime * 50.0f; // Rotate model over time
+        glm::mat4 chickenModel = glm::mat4(1.0f); // Identity matrix for the chicken
+        chickenModel = glm::translate(chickenModel, modelPosition); // Apply translation
+        chickenModel = glm::scale(chickenModel, modelScale); // Apply scaling
+        chickenModel = glm::rotate(chickenModel, glm::radians(modelRotation.y), glm::vec3(0.0f, 1.0f, 0.0f)); // Apply rotation
+
+        lightingShader.setMat4("model", chickenModel); // Pass chicken transformation to shader
+        myModel.Draw(lightingShader, chickenModel); // Draw the chicken
+
+
+
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
+    //myModel.cleanUp();
     glDeleteVertexArrays(1, &rayVAO);
     glDeleteBuffers(1, &rayVBO);
 
