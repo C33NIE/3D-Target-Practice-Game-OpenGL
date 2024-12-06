@@ -8,6 +8,8 @@
 #include "Shader.h"
 #include "Raycaster.h"
 #include "meshGenerator.h"
+#include "Light.h"
+#include "Skybox.h"
 
 // Create a Camera object
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
@@ -26,7 +28,7 @@ bool firstMouse = true;
 
 // Light properties
 glm::vec3 lightPos(2.0f, 1.0f, 1.0f); // Initial light position
-float lightIntensity = 1.0f;          // Light brightness
+float lightIntensity = 0.0002f;          // Light brightness
 
 // Raycaster instance
 Raycaster raycaster;
@@ -113,14 +115,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
         double xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
-
-        // Calculate the ray
-        raycaster.calculateRay(
-            glm::vec2(xpos, ypos),
-            glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f),
-            camera.GetViewMatrix(),
-            glm::vec2(800, 600)
-        );
+        raycaster.shootFromCamera(camera);
 
         // Debug output
         std::cout << "Ray Origin: " << raycaster.origin.x << ", " << raycaster.origin.y << ", " << raycaster.origin.z << std::endl;
@@ -147,7 +142,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Lighting and Cube with Raycaster", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Target Practice", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -165,10 +160,23 @@ int main() {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
 
+    // Prepare skybox
+    std::vector<std::string> skyboxFaces{
+        "Assets/skybox/px.png",
+        "Assets/skybox/nx.png",
+        "Assets/skybox/py.png",
+        "Assets/skybox/ny.png",
+        "Assets/skybox/pz.png",
+        "Assets/skybox/nz.png"
+    };
+    Skybox skybox(skyboxFaces);
+
     glEnable(GL_DEPTH_TEST);
 
-    Shader lightingShader("vertex_shader.glsl", "fragment_shader.glsl");
-    Shader rayShader("ray_vertex_shader.glsl", "ray_fragment_shader.glsl"); // Shader for ray rendering
+    Shader lightingShader("vertex_shader.glsl", "lighting.glsl");
+    Shader rayShader("ray_vertex_shader.glsl", "ray_fragment_shader.glsl", "ray_geometry_shader.glsl"); // Include geometry shader
+    Shader ObjectShader("vertex_shader.glsl", "fragment_shader.glsl");
+
 
     // Generate a plane at position (2.0f, 0.0f, 0.0f)
     Mesh plane = MeshGenerator::generatePlane(20.f, 20.f, glm::vec3(.0f, -1.5f, 0.0f));
@@ -198,34 +206,38 @@ int main() {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+
+
+        glm::mat4 model = glm::mat4(1.0f);
+        ObjectShader.use();
+        ObjectShader.setVec3("objectColor", glm::vec3(0.0f, 0.0f, 1.0f));  // Blue color
+        ObjectShader.setMat4("model", model);
+        ObjectShader.setMat4("view", view);
+        ObjectShader.setMat4("projection", projection);
 
         plane.render();
+        cube.render();
 
+
+        skybox.Draw(view, projection);
+        DirectionalLight pointLight(glm::vec3(0.f, .0f, .0f), glm::vec3(0.5f, 1.0f, 1.0f), lightIntensity);       
+
+            // Apply lights in the render loop
+        lightingShader.use();
+        pointLight.apply(lightingShader, "pointLight");
+
+       
 
         // Render ray
         rayShader.use();
-        glm::mat4 view = camera.GetViewMatrix();
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
-        rayShader.setMat4("view", view);
-        rayShader.setMat4("projection", projection);
-        rayShader.setVec3("color", glm::vec3(1.0f, 0.0f, 0.0f)); // Red ray
-
-
-        lightingShader.use();
-        lightingShader.setVec3("lightPos", lightPos);
-        lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setVec3("lightColor", glm::vec3(lightIntensity));
-        lightingShader.setVec3("objectColor", glm::vec3(1.0f, 0.5f, 0.31f));
-
-        glm::mat4 model = glm::mat4(1.0f);
-
-
-        lightingShader.setMat4("model", model);
-        lightingShader.setMat4("view", view);
-        lightingShader.setMat4("projection", projection);
-
+        rayShader.setMat4("view", camera.GetViewMatrix());
+        rayShader.setMat4("projection", glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f));
+        rayShader.setFloat("thickness", 0.5f); // Adjust thickness as needed
         glBindVertexArray(rayVAO);
         glDrawArrays(GL_LINES, 0, 2);
+
 
         glfwSwapBuffers(window);
         glfwPollEvents();

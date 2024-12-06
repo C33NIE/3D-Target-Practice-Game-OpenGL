@@ -149,17 +149,24 @@
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="glad.c" />
+    <ClCompile Include="Light.cpp" />
     <ClCompile Include="meshGenerator.cpp" />
+    <ClCompile Include="Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Light.h" />
     <ClInclude Include="meshGenerator.h" />
     <ClInclude Include="Raycaster.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="Skybox.h" />
+    <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment_shader.glsl" />
+    <None Include="lighting.glsl" />
     <None Include="ray_fragment_shader.glsl" />
+    <None Include="ray_geometry_shader.glsl" />
     <None Include="ray_vertex_shader.glsl" />
     <None Include="vertex_shader.glsl" />
   </ItemGroup>
