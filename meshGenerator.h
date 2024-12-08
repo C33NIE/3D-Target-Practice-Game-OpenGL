@@ -7,14 +7,14 @@
 #include <glm/glm.hpp>
 #include <glad/glad.h>
 
-class Mesh {
+class MeshGen {
 public:
     unsigned int VAO, VBO, EBO;
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
 
-    Mesh(const std::vector<float>& vertices, const std::vector<unsigned int>& indices);
-    ~Mesh();
+    MeshGen(const std::vector<float>& vertices, const std::vector<unsigned int>& indices);
+    ~MeshGen();
 
     void render() const;
 
@@ -27,8 +27,8 @@ private:
 
 class MeshGenerator {
 public:
-    static Mesh generatePlane(float width, float height, const glm::vec3& position);
-    static Mesh generateCube(float width, float height, float depth, const glm::vec3& position);
+    static MeshGen generatePlane(float width, float height, const glm::vec3& position);
+    static MeshGen generateCube(float width, float height, float depth, const glm::vec3& position);
 
 
 };

@@ -3,18 +3,18 @@
 #include "glm/glm.hpp"
 #include <iostream>
 
-Mesh::Mesh(const std::vector<float>& vertices, const std::vector<unsigned int>& indices)
+MeshGen::MeshGen(const std::vector<float>& vertices, const std::vector<unsigned int>& indices)
     : vertices(vertices), indices(indices) {
     setupMesh();
 }
 
-Mesh::~Mesh() {
+MeshGen::~MeshGen() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
 }
 
-void Mesh::setupMesh() {
+void MeshGen::setupMesh() {
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
@@ -38,13 +38,13 @@ void Mesh::setupMesh() {
     glBindVertexArray(0);
 }
 
-void Mesh::render() const {
+void MeshGen::render() const {
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
 
-Mesh MeshGenerator::generatePlane(float width, float height, const glm::vec3& position) {
+MeshGen MeshGenerator::generatePlane(float width, float height, const glm::vec3& position) {
     std::vector<float> vertices = {
         // positions              // texCoords
         -width / 2 + position.x, 0.0f + position.y, -height / 2 + position.z, 0.0f, 0.0f,
@@ -58,10 +58,10 @@ Mesh MeshGenerator::generatePlane(float width, float height, const glm::vec3& po
         2, 3, 0
     };
 
-    return Mesh(vertices, indices);
+    return MeshGen(vertices, indices);
 }
 
-Mesh MeshGenerator::generateCube(float width, float height, float depth, const glm::vec3& position) {
+MeshGen MeshGenerator::generateCube(float width, float height, float depth, const glm::vec3& position) {
     std::vector<float> vertices = {
         // positions               // texCoords
         -width / 2 + position.x, -height / 2 + position.y, -depth / 2 + position.z, 0.0f, 0.0f,
@@ -89,10 +89,10 @@ Mesh MeshGenerator::generateCube(float width, float height, float depth, const g
         3, 2, 6, 6, 7, 3
     };
 
-    return Mesh(vertices, indices);
+    return MeshGen(vertices, indices);
 }
 
-glm::vec3 Mesh::getMinBounds() const {
+glm::vec3 MeshGen::getMinBounds() const {
     float minX = std::numeric_limits<float>::max();
     float minY = std::numeric_limits<float>::max();
     float minZ = std::numeric_limits<float>::max();
@@ -106,7 +106,7 @@ glm::vec3 Mesh::getMinBounds() const {
     return glm::vec3(minX, minY, minZ);
 }
 
-glm::vec3 Mesh::getMaxBounds() const {
+glm::vec3 MeshGen::getMaxBounds() const {
     float maxX = std::numeric_limits<float>::lowest();
     float maxY = std::numeric_limits<float>::lowest();
     float maxZ = std::numeric_limits<float>::lowest();

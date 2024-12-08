@@ -53,6 +53,12 @@
     <ClInclude Include="stb_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="vertex_shader.glsl">
@@ -71,6 +77,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="lighting.glsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="model_fragment.glsl">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

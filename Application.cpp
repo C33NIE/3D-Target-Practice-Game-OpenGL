@@ -10,6 +10,7 @@
 #include "meshGenerator.h"
 #include "Light.h"
 #include "Skybox.h"
+#include "Model.h"
 
 // Create a Camera object
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
@@ -132,6 +133,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         glBindBuffer(GL_ARRAY_BUFFER, rayVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(rayVertices), rayVertices);
     }
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+    {
+        std::cout << "Right mouse button clicked!" << std::endl;
+    }
 }
 
 int main() {
@@ -176,13 +181,31 @@ int main() {
     Shader lightingShader("vertex_shader.glsl", "lighting.glsl");
     Shader rayShader("ray_vertex_shader.glsl", "ray_fragment_shader.glsl", "ray_geometry_shader.glsl"); // Include geometry shader
     Shader ObjectShader("vertex_shader.glsl", "fragment_shader.glsl");
+    Shader modelShader("vertex_shader.glsl", "model_fragment.glsl");
 
 
     // Generate a plane at position (2.0f, 0.0f, 0.0f)
-    Mesh plane = MeshGenerator::generatePlane(20.f, 20.f, glm::vec3(.0f, -1.5f, 0.0f));
+    MeshGen plane = MeshGenerator::generatePlane(20.f, 20.f, glm::vec3(.0f, -1.5f, 0.0f));
 
     // Generate a cube at position (-2.0f, 1.0f, 0.0f)
-    Mesh cube = MeshGenerator::generateCube(2.0f, 2.0f, 2.0f, glm::vec3(-2.0f, 1.0f, 0.0f));
+    MeshGen cube = MeshGenerator::generateCube(2.0f, 2.0f, 2.0f, glm::vec3(-2.0f, 1.0f, 0.0f));
+
+
+    // Load 3D model
+    Model M4("Resources/Models/M4/M4_Rifle.gltf");
+
+    // Set initial transformations
+    M4.setPosition(0.0f, 0.0f, 0.0f);
+    M4.setRotation(0.0f, 0.0f, 0.0f);
+    M4.setScale(0.10f, 0.10f, 0.10f);
+
+    // Aim Position
+    glm::vec3 aimPos(0.0f, 0.0f, 0.0f);
+
+    // Model rotation speed
+    float rotationSpeed = 50.0f;
+
+    
 
 
     // Ray VAO/VBO setup
@@ -202,6 +225,7 @@ int main() {
 
         processInput(window);
         applyGravity();
+
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -237,6 +261,53 @@ int main() {
         rayShader.setFloat("thickness", 0.5f); // Adjust thickness as needed
         glBindVertexArray(rayVAO);
         glDrawArrays(GL_LINES, 0, 2);
+
+        // Update model transformations
+        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
+            M4.position.z -= 1.0f * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+            M4.position.z += 1.0f * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
+            M4.position.x -= 1.0f * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+            M4.position.x += 1.0f * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
+            M4.position.y += 1.0f * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+            M4.position.y -= 1.0f * deltaTime;
+
+        // Rotation controls
+        if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+            M4.rotation.x += rotationSpeed * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
+            M4.rotation.y += rotationSpeed * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+            M4.rotation.z += rotationSpeed * deltaTime;
+
+        // Scale controls
+        if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) {
+            M4.scale += glm::vec3(0.1f) * deltaTime;
+        }
+        if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) {
+            M4.scale -= glm::vec3(0.1f) * deltaTime;
+            M4.scale = glm::max(M4.scale, glm::vec3(0.1f)); // Prevent negative scale
+        }
+        
+        M4.setRotationFromCamera(camera, 90.0f);
+        M4.position = camera.Position;
+
+        modelShader.use();
+        modelShader.setMat4("projection", projection);
+        modelShader.setMat4("view", camera.GetViewMatrix());
+        modelShader.setVec3("viewPos", camera.Position);
+
+        // Set lighting uniforms
+        modelShader.setVec3("light.position", lightPos);
+        modelShader.setVec3("light.ambient", glm::vec3(0.2f));
+        modelShader.setVec3("light.diffuse", glm::vec3(0.5f));
+        modelShader.setVec3("light.specular", glm::vec3(1.0f));
+        
+        M4.Draw(modelShader);
 
 
         glfwSwapBuffers(window);
