@@ -13,7 +13,7 @@
 #include "Model.h"
 
 // Create a Camera object
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
+Camera camera(glm::vec3(0.0f, 1.0f, 3.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f);
 
 // Time tracking variables for smooth movement
 float deltaTime = 0.0f;
@@ -103,8 +103,8 @@ void processInput(GLFWwindow* window) {
 void applyGravity() {
     if (!onGround) {
         camera.Position.y -= gravity * deltaTime;
-        if (camera.Position.y <= -1.0f) { // Assume ground plane is y = -1
-            camera.Position.y = -1.0f;
+        if (camera.Position.y <= 0.99f) { // Assume ground plane is y = -1
+            camera.Position.y = 1.1f;
             onGround = true;
         }
     }
@@ -133,10 +133,54 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         glBindBuffer(GL_ARRAY_BUFFER, rayVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(rayVertices), rayVertices);
     }
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
     {
         std::cout << "Right mouse button clicked!" << std::endl;
     }
+}
+
+// In your render loop
+void renderScene(unsigned int shaderProgram, Model myModel) {
+    // Create transformation matrix
+    glm::mat4 model = glm::mat4(1.0f);
+
+    // Apply transformations
+    myModel.setTransform(glm::mat4(1.0f)); // Reset transform
+    myModel.translate(glm::vec3(0.0f, 0.0f, 0.0f));
+    myModel.rotate(45.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+    myModel.scale(glm::vec3(1.0f, 1.0f, 1.0f));
+
+    // Send model matrix to shader
+    unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(myModel.getModelMatrix()));
+
+    // Draw the model
+    myModel.Draw(shaderProgram);
+}
+
+void setLightingUniforms(unsigned int shaderProgram) {
+    // Simulate sun position (high up and slightly angled)
+    glm::vec3 lightPos(-1000.0f, 1000.0f, -250.0f); // Far away to simulate directional light
+
+    // Sunlight color (slightly warm white)
+    glm::vec3 sunColor(1.0f, 0.98f, 0.95f);
+
+    // Light components
+    glm::vec3 lightAmbient = sunColor * glm::vec3(0.1f);  // Ambient is low, simulating indirect sky light
+    glm::vec3 lightDiffuse = sunColor * glm::vec3(1.0f);  // Strong direct sunlight
+    glm::vec3 lightSpecular = sunColor * glm::vec3(0.4); // Slightly reduced specular to avoid too much glare
+
+    glUniform3fv(glGetUniformLocation(shaderProgram, "light.position"), 1, glm::value_ptr(lightPos));
+    glUniform3fv(glGetUniformLocation(shaderProgram, "light.ambient"), 1, glm::value_ptr(lightAmbient));
+    glUniform3fv(glGetUniformLocation(shaderProgram, "light.diffuse"), 1, glm::value_ptr(lightDiffuse));
+    glUniform3fv(glGetUniformLocation(shaderProgram, "light.specular"), 1, glm::value_ptr(lightSpecular));
+
+    // Material properties
+    float shininess = 40.0f; // Higher shininess for sharper highlights, like you'd see in daylight
+    glUniform1f(glGetUniformLocation(shaderProgram, "material.shininess"), shininess);
+
+    // View position (camera position)
+    glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(camera.Position));
 }
 
 int main() {
@@ -147,7 +191,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Target Practice", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(1350, 1080, "Target Practice", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -160,7 +204,7 @@ int main() {
         return -1;
     }
 
-    glViewport(0, 0, 800, 600);
+    glViewport(0, 0, 1350, 1080);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
@@ -181,7 +225,28 @@ int main() {
     Shader lightingShader("vertex_shader.glsl", "lighting.glsl");
     Shader rayShader("ray_vertex_shader.glsl", "ray_fragment_shader.glsl", "ray_geometry_shader.glsl"); // Include geometry shader
     Shader ObjectShader("vertex_shader.glsl", "fragment_shader.glsl");
-    Shader modelShader("vertex_shader.glsl", "model_fragment.glsl");
+    Shader modelShader("model_vertex.glsl", "model_fragment.glsl");
+
+    // After creating shader program
+    GLint isLinked;
+    glGetProgramiv(modelShader.ID, GL_LINK_STATUS, &isLinked);
+    if (!isLinked) {
+        GLint maxLength;
+        glGetProgramiv(modelShader.ID, GL_INFO_LOG_LENGTH, &maxLength);
+        std::vector<GLchar> infoLog(maxLength);
+        glGetProgramInfoLog(modelShader.ID, maxLength, &maxLength, &infoLog[0]);
+        std::cout << "Shader linking error: " << std::string(infoLog.begin(), infoLog.end()) << std::endl;
+    }
+
+    // Print all active uniforms
+    GLint numUniforms;
+    glGetProgramiv(modelShader.ID, GL_ACTIVE_UNIFORMS, &numUniforms);
+    for (GLint i = 0; i < numUniforms; ++i) {
+        GLint size; GLenum type;
+        GLchar name[128];
+        glGetActiveUniform(modelShader.ID, i, sizeof(name) - 1, nullptr, &size, &type, name);
+        std::cout << "Active uniform " << i << ": " << name << std::endl;
+    }
 
 
     // Generate a plane at position (2.0f, 0.0f, 0.0f)
@@ -192,20 +257,23 @@ int main() {
 
 
     // Load 3D model
-    Model M4("Resources/Models/M4/M4_Rifle.gltf");
+    Model Guns("Resources/Models/Guns/scene.gltf");
+    Model Ground("Resources/Models/Ground/scene.gltf");
+    Model Plants("Resources/Models/Plants1/scene.gltf");
+    Model Targets("Resources/Models/Target/scene.gltf");
+    Model Tower("Resources/Models/Tower/scene.gltf");
+    Model Hut("Resources/Models/Hut/scene.gltf");
+    //Model Desert("Resources/Models/Desert/scene.gltf");
 
-    // Set initial transformations
-    M4.setPosition(0.0f, 0.0f, 0.0f);
-    M4.setRotation(0.0f, 0.0f, 0.0f);
-    M4.setScale(0.10f, 0.10f, 0.10f);
 
+    
     // Aim Position
     glm::vec3 aimPos(0.0f, 0.0f, 0.0f);
 
     // Model rotation speed
     float rotationSpeed = 50.0f;
 
-    
+
 
 
     // Ray VAO/VBO setup
@@ -241,18 +309,18 @@ int main() {
         ObjectShader.setMat4("view", view);
         ObjectShader.setMat4("projection", projection);
 
-        plane.render();
-        cube.render();
+        //plane.render();
+        //cube.render();
 
 
         skybox.Draw(view, projection);
-        DirectionalLight pointLight(glm::vec3(0.f, .0f, .0f), glm::vec3(0.5f, 1.0f, 1.0f), lightIntensity);       
+        DirectionalLight pointLight(glm::vec3(0.f, .0f, .0f), glm::vec3(0.5f, 1.0f, 1.0f), lightIntensity);
 
-            // Apply lights in the render loop
+        // Apply lights in the render loop
         lightingShader.use();
         pointLight.apply(lightingShader, "pointLight");
 
-       
+
 
         // Render ray
         rayShader.use();
@@ -261,40 +329,6 @@ int main() {
         rayShader.setFloat("thickness", 0.5f); // Adjust thickness as needed
         glBindVertexArray(rayVAO);
         glDrawArrays(GL_LINES, 0, 2);
-
-        // Update model transformations
-        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
-            M4.position.z -= 1.0f * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
-            M4.position.z += 1.0f * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
-            M4.position.x -= 1.0f * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
-            M4.position.x += 1.0f * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
-            M4.position.y += 1.0f * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
-            M4.position.y -= 1.0f * deltaTime;
-
-        // Rotation controls
-        if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
-            M4.rotation.x += rotationSpeed * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
-            M4.rotation.y += rotationSpeed * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
-            M4.rotation.z += rotationSpeed * deltaTime;
-
-        // Scale controls
-        if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) {
-            M4.scale += glm::vec3(0.1f) * deltaTime;
-        }
-        if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) {
-            M4.scale -= glm::vec3(0.1f) * deltaTime;
-            M4.scale = glm::max(M4.scale, glm::vec3(0.1f)); // Prevent negative scale
-        }
-        
-        M4.setRotationFromCamera(camera, 90.0f);
-        M4.position = camera.Position;
 
         modelShader.use();
         modelShader.setMat4("projection", projection);
@@ -306,8 +340,15 @@ int main() {
         modelShader.setVec3("light.ambient", glm::vec3(0.2f));
         modelShader.setVec3("light.diffuse", glm::vec3(0.5f));
         modelShader.setVec3("light.specular", glm::vec3(1.0f));
+        setLightingUniforms(modelShader.ID);
+        renderScene(modelShader.ID, Guns);
+        renderScene(modelShader.ID, Ground);
+        renderScene(modelShader.ID, Plants);
+        renderScene(modelShader.ID, Targets);
+        renderScene(modelShader.ID, Tower);
+        renderScene(modelShader.ID, Hut);
+        //renderScene(modelShader.ID, Desert);
         
-        M4.Draw(modelShader);
 
 
         glfwSwapBuffers(window);

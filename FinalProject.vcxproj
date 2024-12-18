@@ -166,12 +166,12 @@
     <ClInclude Include="Shader.h" />
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="stb_image.h" />
-    <ClInclude Include="Texture.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fragment_shader.glsl" />
     <None Include="lighting.glsl" />
     <None Include="model_fragment.glsl" />
+    <None Include="model_vertex.glsl" />
     <None Include="ray_fragment_shader.glsl" />
     <None Include="ray_geometry_shader.glsl" />
     <None Include="ray_vertex_shader.glsl" />

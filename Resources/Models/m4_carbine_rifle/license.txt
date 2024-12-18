@@ -1,8 +1,0 @@
-Model Information:
-* title:	M4 Carbine Rifle
-* source:	https://sketchfab.com/3d-models/m4-carbine-rifle-3d028a9e936e4f58a5f10e2339ed7f88
-* author:	UmangRank (https://sketchfab.com/UmangRank)
-
-Model License:
-* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
-* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works
